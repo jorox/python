@@ -52,7 +52,7 @@ def main():
     
     if lammps:
         fout.write("Cell with dimensions " + str(n) + "\n\n")
-        fout.write(str(len(atoms)) + " atoms\n1 atom type\n\n")
+        fout.write(str(len(atoms)) + " atoms\n1 atom types\n\n")
     
     fout.write("%10.8f %10.8f xlo xhi\n" % (0.0, n[0]*a[0]))
     fout.write("%10.8f %10.8f ylo yhi\n" % (0.0, n[1]*b[1]))
