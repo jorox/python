@@ -37,18 +37,27 @@ def main():
             
             if args[iarg] == "-x":
                 doalloy = True
-                base = args[iarg+1].split(",")[0]
-                alloy = args[iarg+1].split(",")[1]
+                base = float(args[iarg+1].split(",")[0])
+                alloy = float(args[iarg+1].split(",")[1])
                 conc = float(args[iarg+2])
+                print "***********DEBUG*********"
+                print base,
+                print alloy,
+                print conc
+                print "*************************"
+                
                 continue
     
-    ### load text from input file, ignore lines with # 
+#### load text from input file, ignore lines with 
     ABC = np.loadtxt(flname)
-    # unit cell vectors will be the first three lines
-    A = ABC[0]
-    B = ABC[1]
-    C = ABC[2]
-    # build the lammps basis a,b,c using the relations specified on the website
+    # unit cell vectors will be the first three lines 
+    #   take only the first three entries 
+    #   (trailing zeros for book-keeping)
+    A = ABC[0][:3]
+    B = ABC[1][:3]
+    C = ABC[2][:3]
+    # build the lammps basis a,b,c using the relations 
+    #   specified on the website
     a = [norm(A),0.0,0.0]
     Ahat = unit(A)
     b = [dot(B,Ahat), norm(np.cross(Ahat,B)), 0]
@@ -56,26 +65,30 @@ def main():
     c = [dot(C,Ahat), dot(C,np.cross(ABhat,Ahat)), 0.]
     c[2] = np.sqrt(norm(C)**2-c[0]**2-c[1]**2)
     
-    ### If there are more lines these will be the atoms in the unit cell
+#### If there are more lines these will be the atoms in the unit cell
     if len(ABC) > 3:
         nuc = len(ABC[3:])
         print "... found atoms (" + str(nuc) + ") in text file, changing basis"
         douc = True
-    # if found count number of atoms in unit cell and transform. Build more if needed
-    #  ucatms = [ [x1,y1,z1,t1], [x2,y2,z2,t2], .... , [xn,yn,zn,tn]]
+    # if found count number of atoms in unit cell 
+    #    and transform. Build more if needed
+    # ucatms = [ [x1,y1,z1,t1], [x2,y2,z2,t2], .... , [xn,yn,zn,tn]]
     if douc:
         ucatms = ABC[3:]
-        if len(ABC[3]==3):
-            for i in range(nuc):
-                ucatms[i].append(1)
-
         atoms = transUC(ucatms,[A,B,C], [a,b,c])
         if n[0]>1 or n[1]>1 or n[2]>1:
             print "... need more atoms adding " + str(n) 
             atoms = buildmore(n,[a,b,c],atoms)
-    print "... " + str(len(atoms)) + " atoms"
+    print "     >>> " + str(len(atoms)) + " atoms"
     
-    # write to file in either lammps format or in same format as input text
+#### Alloy if requested
+    if doalloy:
+        print "... alloying type __" + str(base) + "__ to type __" + str(alloy) + "__"
+        atoms,changeList = contaminate(atoms, base,alloy,conc)
+        print "     >>> changed atoms: %.4f at." % (float(len(changeList))/len(atoms))
+    
+    
+#### write to file in either lammps format or in same format as input text
     fout = open(outname,'w')
     
     if lammps:
@@ -94,7 +107,8 @@ def main():
             fout.write("\n%1.0f %1.0f %10.8f %10.8f %10.8f" % (ia, elem[3], elem[0], elem[1], elem[2]))
     fout.close()
     print "... Done writing to file " + outname
-    # write to map file if needed
+#### Done writing to file
+#### Write to map file
     if douc and domap:
         outname = "map." + outname
         fout = open(outname, 'w')
@@ -113,7 +127,7 @@ def main():
             
             fout.write("\n%1.0f %1.0f %1.0f %1.0f %1.0f %1.0f" % 
                        (elem[0], elem[1], elem[2], (ia-1)%nuc, type, ia))
-        print "... Done writing map file: " + flname
+        print "... Done writing map file: " + outname
         fout.close()
         
 def dot(a,b):
@@ -133,6 +147,10 @@ def unit(a):
     return a/norm(a)
   
 def transUC(atms, oldbasis, newbasis):
+    """
+    change from old basis which is the input file basis to the new basis i.e. the lammps basis
+    """
+    
     newbasis = np.transpose(np.array(newbasis)) #form the V matix
 
     from numpy.linalg import inv
@@ -147,8 +165,11 @@ def transUC(atms, oldbasis, newbasis):
     
     newatms = []
     for elem in atms:
+        type = elem[3]
+        elem = elem[:3]
         elem = np.transpose(np.array(elem))
-        newatms.append(np.dot(CBM,elem))
+        newatms.append(np.dot(CBM,elem).tolist())
+        newatms[-1].append(type)  # restore type
     return newatms
 
 def buildmore(n,basis,uc):
@@ -174,7 +195,7 @@ def buildmore(n,basis,uc):
         temp = (atoms[ia][0]*basis[0] + 
                 atoms[ia][1]*basis[1] + 
                 atoms[ia][2]*basis[2]).tolist()
-        temp = temp.append(atoms[ia][3])    # add the type
+        temp.append(atoms[ia][3])    # add the type
         atoms[ia] = temp 
         
     return atoms
@@ -184,38 +205,30 @@ def contaminate(atms,t1,t2,xt2):
     """
     create an alloy by changing a number of atoms in 'atms' from type t1 to type t2
     """
-    
+
     # find total number of atoms
     ntotal = len(atms)
     t1ids = []
     nt1 = 0;
+    
     # find total number of t1 atoms and their ids
     for ia in range(ntotal):
-        if elem[3] == t1:
+        if atms[ia][3] == t1:
             t1ids.append(ia)
             nt1 +=1
     
-    nt2 = np.around(nt1*xt2)
+    nt2 = int(nt1*xt2)
     if nt2 < 1:
-        print "$$$ ERROR: not enough atoms of type ## " + str(t1) + " ## to alloy $$$"
-    return
-        
-    rnd = np.random.shuffle(t1ids)
-    rnd = rnd[:nt2]
-    
+        print "$$$ ERROR: not enough atoms of type ## " + str(t1) + " ## " + str(nt1) + " atoms to alloy $$$"
+        return
+
+    np.random.shuffle(t1ids)
+    rnd = t1ids[:nt2]
     for zombie in rnd:
         atms[zombie][3] = t2
-        
-    return atms,rnd
-        
-        
+
+    return (atms,rnd)
                 
-        
-        
-        
-        
-        
-    
     
     
 if __name__=="__main__":
