@@ -4,9 +4,9 @@ import sys
 class vdata:
 
     def __init__(self,fname,mname,maxsteps=0):
+	print "... reading " + str(maxsteps) + " timesteps"
         self.readmap(mname)
         self.readfile(fname,maxsteps)
-
 
     def readmap(self,mname):
         m_in = open(mname,'r')
@@ -34,7 +34,7 @@ class vdata:
             line = line.strip().split()
             line = [int(x) for x in line]
 ##### format for map file: l0 l1 l2 index type id
-	    nx = line[0]; ny = line[1]; nz = line[2]
+            nx = line[0]; ny = line[1]; nz = line[2]
             b = line[3]
             typ = line[4]
             aid = line[5]
@@ -47,13 +47,13 @@ class vdata:
         return 0
 
     def getAtomData(self,nxyz,alpha,b,t=-1):
-    """
-    returns the data corresponding to dimension 'alpha' for the atom in
-    unit cell 'nxyz[0],nxyz[1],nxyz[2]' with index 'b' for time 't'
-    if time t=-1 return the entire temporal data
+        '''
+        returns the data corresponding to dimension 'alpha' for the atom in
+        unit cell 'nxyz[0],nxyz[1],nxyz[2]' with index 'b' for time 't'
+        if time t=-1 return the entire temporal data
 
-    return type (np.array)
-    """
+        return type (np.array)
+        '''
 
         aid = self.amap[nxyz[0],nxyz[1],nxyz[2],b]
         if t>-1:
@@ -62,13 +62,13 @@ class vdata:
             return np.array(self.data[aid][alpha])
 
     def getrmap(self,navg=-1):
-    """
-    return the position of each unit cell from the average position of
-    the first atom in the unit cell.
-    navg: number of samples when averaging
+        '''
+        return the position of each unit cell from the average position of
+        the first atom in the unit cell.
+        navg: number of samples when averaging
 
-    returns : np.array
-    """
+        returns : np.array
+        '''
         n = self.n
         rmap = np.zeros((n[0],n[1],n[2],3))
         for nx in range(n[0]):
@@ -82,25 +82,27 @@ class vdata:
 
 
     def readfile(self,flname, maxSteps=0):
-    """
-    parse input file for data
-    format of input file:
-    {   id type   vx vy vz   x y z   } (gratutous whitespaces) 
-    format of data array:
-    N atoms
-    M timesteps
-       data = [ atom0{[x0,x1,...,xM],[y0,...,yM],[z],[u],[v],[w]} 
-                atom1{[x], [y], [z], [u], [v], [w]} ,
-		...
-		...
-		...,
-		atomN{...}
-	      ]
-    data[aid][alpha][t]
-       aid    : atom id
-       alpha  : dimension
-       t      : timestep
-    """
+        '''
+        parse input file for data
+        format of input file:
+        {   id type   vx vy vz   x y z   } (gratutous whitespaces)
+        note that 'id' is critical but 'mass' is not
+        format of data array:
+        N atoms
+        M timesteps
+           data = [ atom0{[x0,x1,...,xM],[y0,...,yM],[z],[u],[v],[w]}
+                    atom1{[x], [y], [z], [u], [v], [w]} ,
+    		        ...
+    		        ...
+    		        ...,
+    		        atomN{...} ]
+
+        data[aid][alpha][t]
+           aid    : atom id
+           alpha  : dimension
+           t      : timestep
+        '''
+
         # Load data from file
         f_in = open(flname,'r')
         mrkr = 0
@@ -126,7 +128,7 @@ class vdata:
                 onstep = line.strip()
             if mrkr > 8:  #8 header lines per section
                 if mrkr == 9+Natoms:
-                    lout = "\b"*(len(lout)) + yummy[Nsteps%4] + ' reading file ... ' + onstep
+                    lout = "\b"*(len(lout)) + yummy[Nsteps%4] + ' reading file ... ' + onstep + " (" + "%1.2f"%((float(Nsteps)/maxSteps)*100) + "%)"
                     print lout,
                     Nsteps += 1
                     mrkr = 1
@@ -147,7 +149,7 @@ class vdata:
             mrkr += 1
         if not maxSteps: Nsteps +=1  # needed when reading all steps in file
         f_in.close()
-        print("\nDone loading data ... "+str(Nsteps)+" timesteps, "+str(Natoms)+"atoms")
+        print("\nDone loading data ... "+str(Nsteps)+" timesteps, "+str(Natoms)+" atoms")
         self.data = data
         return 0
 
@@ -200,25 +202,84 @@ def buildrecp(a):
 
     return b
 
+def parsepfile(fname):
+    fin = open(fname)
+    line = fin.readline()
+
+    while line:
+        line = line.strip().split()
+
+        if line[0] == "ddir":
+            ddir = line[2]
+
+        if line[0] == "flname":
+            vflname = line[2]
+
+        if line[0] == "mname":
+            mname = line[2]
+
+
+        if line[0] == "kname":
+            kname = line[2]
+
+
+        if line [0] == "dims":
+            dims = line[2].split(",")
+            dims = [int(x.strip()) for x in dims]
+
+        if line[0] == "a":
+            i = 0
+            a = []
+            while i<3:
+                i +=1
+                line = fin.readline().strip()
+                at = line.split(",")
+                at = [float(x.strip()) for x in at]
+                a.append(at)
+
+
+        if line[0] == "dt":
+            dt = float(line[2].strip())
+
+        if line[0] == "mtyp":
+            mtyp = line[2].split(",")
+            mtyp = [float(x.strip()) for x in mtyp]
+        
+        if line[0] == "maxsteps":
+            maxstep = int(line[2])
+        
+        line = fin.readline()
+
+    return (ddir+vflname, ddir+mname, ddir+kname, dims, a, dt, mtyp, maxstep)
+
 
 def main():
-    ddir = "/Users/kassemw/Documents/LiClipse_Workspace/dispersion/aln/"
-    flname = ddir+"v_AlON_6420_12.dat"
-    mname  = ddir+"map.alon6420_12"
-    kname = ddir+"in.disp"
-    dims = [3,4,5]   #vx,vy,vz
+    pfile = sys.argv[1]
+    flname, mname, kname, dims, a, dt, mtyp, maxsteps = parsepfile(pfile)
+    print "   --> file = " + flname
+    print "   --> map = " + mname
+    print "   --> lattice = " + str(a)
+    print "   --> dt = " + str(dt)
+    print "   --> masses = " + str(mtyp)
+
+    #ddir = "/Users/kassemw/Documents/LiClipse_Workspace/dispersion/"
+    #flname = ddir+"xv_Cu.dat"
+    #mname  = ddir+"map.in"
+    #kname = ddir+"in.disp"
+    #dims = [3,4,5]   #vx,vy,vz
     #a = [[2.55618,   0,        0],
     #     [1.2780875, 2.213726, 0],
     #     [1.2780875, 0.737909, 2.08712122]]       #unit cell length
-    a = [[3.1118, 0.0, 0.0],
-         [0.0 , 5.3898 ,0.0],
-         [0.0 , 0.0 ,5.0737899]]
-    dt = 0.02  #timestep ps 
-    mtyp = [26.9815386,14.007,15.9994] #masses of different atoms
+    #a = [[3.1118, 0.0, 0.0],
+    #     [0.0 , 5.3898 ,0.0],
+    #     [0.0 , 0.0 ,5.0737899]]
+    #dt = 0.03  #timestep ps
+    #mtyp = [63.546]
+    #mtyp = [26.9815386,14.007,15.9994] #masses of different atoms
 
 
     ###### read file into memory ######
-    krnl = vdata(flname,mname,3000)
+    krnl = vdata(flname,mname,maxsteps)
 
     ###### calculated from input ######
     N_T = np.prod(krnl.n)    #number of unit cells
@@ -235,11 +296,11 @@ def main():
     kappa = setupkvecs(kname,a)
     time  = np.arange(0,N)*dt
     nw = len(omega)
-    steps = len(kappa)/10
+    steps = float(len(kappa))/10
 
     phi = np.zeros((len(kappa),len(omega)))
     ik = 0
-    print "kvec progress = " + ' [          ]',
+    print "kvec progress = " + '[           ]',
     print '\b'*12,
     for k in kappa:
 #        iw = 0
