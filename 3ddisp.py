@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import os
 
 class vdata:
 
@@ -214,6 +215,7 @@ def parsepfile(fname):
 
         if line[0] == "flname":
             vflname = line[2]
+            outname = vflname+".phi"
 
         if line[0] == "mname":
             mname = line[2]
@@ -248,15 +250,20 @@ def parsepfile(fname):
         if line[0] == "maxsteps":
             maxstep = int(line[2])
         
+        if line[0] == "outname":
+            outname = line[2]
+
         line = fin.readline()
 
-    return (ddir+vflname, ddir+mname, ddir+kname, dims, a, dt, mtyp, maxstep)
+    return (ddir+vflname, ddir+mname, ddir+kname, dims, a, dt, mtyp, maxstep, outname)
 
 
 def main():
     pfile = sys.argv[1]
-    flname, mname, kname, dims, a, dt, mtyp, maxsteps = parsepfile(pfile)
+    os.getcwd()
+    flname, mname, kname, dims, a, dt, mtyp, maxsteps, outname = parsepfile(pfile)
     print "   --> file = " + flname
+    print "   --> out = " + outname
     print "   --> map = " + mname
     print "   --> lattice = " + str(a)
     print "   --> dt = " + str(dt)
@@ -333,7 +340,6 @@ def main():
         ik += 1
     print '\b]  Done!'
     phi *= 1.0/4/np.pi/N_T/tau
-    outname = flname+".phi"
     write2file(phi,outname)
 
 def write2file(phi,fname):
