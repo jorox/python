@@ -40,12 +40,6 @@ def main():
                 base = float(args[iarg+1].split(",")[0])
                 alloy = float(args[iarg+1].split(",")[1])
                 conc = float(args[iarg+2])
-                print "***********DEBUG*********"
-                print base,
-                print alloy,
-                print conc
-                print "*************************"
-                
                 continue
     
 #### load text from input file, ignore lines with 
@@ -68,6 +62,10 @@ def main():
 #### If there are more lines these will be the atoms in the unit cell
     if len(ABC) > 3:
         nuc = len(ABC[3:])
+        ntypes = 1  # at least one atom type
+        ## find the number of atom types by taking the maximum
+        for elem in ABC[3:]:
+            if elem[3] > ntypes: ntypes = elem[3] # number of atom types
         print "... found atoms (" + str(nuc) + ") in text file, changing basis"
         douc = True
     # if found count number of atoms in unit cell 
@@ -84,21 +82,26 @@ def main():
 #### Alloy if requested
     if doalloy:
         print "... alloying type __" + str(base) + "__ to type __" + str(alloy) + "__"
-        atoms,changeList = contaminate(atoms, base,alloy,conc)
-        print "     >>> changed atoms: %.4f at." % (float(len(changeList))/len(atoms))
-    
+        Nalloy = conc*len(atoms)
+        atoms,changeList = changetype(atoms, base,alloy, Nalloy)
+        print "     >>> changed atoms percentage: %.4f at." % (float(len(changeList))/len(atoms))
+        if alloy > ntypes: ntypes +=1 # added a new type to the crystal
     
 #### write to file in either lammps format or in same format as input text
     fout = open(outname,'w')
     
     if lammps:
-        fout.write("Cell with dimensions " + str(n) + "\n\n")
-        fout.write(str(len(atoms)) + " atoms\n1 atom types\n\n")
+        fout.write("Cell with dimensions " + str(n))
+        if doalloy: fout.write(" changed " + str(base) + " to " + str(alloy) +  
+                               " with conc. " + str(float(len(changeList))/len(atoms)) + " at.")
+        fout.write("\n\n")
+        fout.write(str(len(atoms)) + " atoms\n%1.0f atom types\n\n"%(ntypes))
     
-    fout.write("%10.8f %10.8f xlo xhi\n" % (0.0, n[0]*a[0]))
-    fout.write("%10.8f %10.8f ylo yhi\n" % (0.0, n[1]*b[1]))
-    fout.write("%10.8f %10.8f zlo zhi\n" % (0.0, n[2]*c[2]))
-    fout.write("%10.8f %10.8f %10.8f xy xz yz" % (n[1]*b[0], n[2]*c[0], n[2]*c[1]))
+    fout.write("%10.8f %10.8f xlo xhi" % (0.0, n[0]*a[0]))
+    fout.write("\n%10.8f %10.8f ylo yhi" % (0.0, n[1]*b[1]))
+    fout.write("\n%10.8f %10.8f zlo zhi" % (0.0, n[2]*c[2]))
+    if b[0] > 0.0 and c[0] > 0.0 and c[1] > 0.0: 
+        fout.write("\n%10.8f %10.8f %10.8f xy xz yz" % (n[1]*b[0], n[2]*c[0], n[2]*c[1]))
     if douc:
         ia = 0
         fout.write("\n\nAtoms\n")
@@ -201,9 +204,9 @@ def buildmore(n,basis,uc):
     return atoms
             
 
-def contaminate(atms,t1,t2,xt2):
+def changetype(atms,t1,t2, nt2):
     """
-    create an alloy by changing a number of atoms in 'atms' from type t1 to type t2
+    change 'nt2' atoms from type 't1' to type 't2'
     """
 
     # find total number of atoms
@@ -217,9 +220,9 @@ def contaminate(atms,t1,t2,xt2):
             t1ids.append(ia)
             nt1 +=1
     
-    nt2 = int(nt1*xt2)
+    nt2 = int(nt2)
     if nt2 < 1:
-        print "$$$ ERROR: not enough atoms of type ## " + str(t1) + " ## " + str(nt1) + " atoms to alloy $$$"
+        print "$$$ ERROR: not enough atoms of type ## " + str(t1) + " ## " + str(nt1) + " are available to alloy $$$"
         return
 
     np.random.shuffle(t1ids)
