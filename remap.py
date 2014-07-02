@@ -21,58 +21,62 @@ def main():
     base1_b2 = [np.dot(INVcbm,np.transpose(np.array(base1_e[i]))) for i in range(3)]
     base1_b2 = [x.tolist() for x in base1_b2]
     
-    print " ... original = "
+    print " ... original lattice vectors= "
     print ("      %1.4f  %1.4f  %1.4f\n      %1.4f  %1.4f  %1.4f\n      %1.4f  %1.4f  %1.4f" % 
            (base1_e[0][0], base1_e[1][0], base1_e[2][0],
             base1_e[0][1], base1_e[1][1], base1_e[2][1],
             base1_e[0][2], base1_e[1][2], base1_e[2][2])) 
     
-    print " ... new = "
+    print " ... new vectors in terms of old ones = "
     print ("      %1.4f  %1.4f  %1.4f\n      %1.4f  %1.4f  %1.4f\n      %1.4f  %1.4f  %1.4f" % 
            (base1_b2[0][0], base1_b2[1][0], base1_b2[2][0],
             base1_b2[0][1], base1_b2[1][1], base1_b2[2][1],
             base1_b2[0][2], base1_b2[1][2], base1_b2[2][2]))
     
-    print " ... basis = "
-    print base2[:3]
+    print " ... basis atoms in new lattice = "
+    print base2[3:]
     
 ### Read map file to build atoms
     oldmap = sys.argv[3]
     outmap = sys.argv[4]
     map_file_in  = open(oldmap)
     map_file_out = open(outmap, 'w')
+    # read two lines which are the header and the column info
     atm = map_file_in.readline()
     atm = map_file_in.readline()
     
+    # minx, miny, minz are for shifting negative unit cells
     newmap = []
     minx = miny = minz = 0
     atm = map_file_in.readline()
     
     while atm:
+        # read atom line
         atm = atm.strip().split()
-        
+        # extract the index(in the uc), id, and type
         atmindx = int(atm[3])
         atmid = int(atm[5])
         atmtyp = int(atm[4])
-        
+        # get the unit cell location
         atm = atm[:3]
         atm = [float(x) for x in atm]
-        
+        # expand by it's type to fractional coordinates
         for i in range(3):
             atm[i] += base1_e[atmindx+3][i]
-        
+        # change to new basis (fractional coordinates)
         newatm = [0,0,0]
         for i in range(3):
             newatm[i] = atm[0]*base1_b2[0][i] + atm[1]*base1_b2[1][i] + atm[2]*base1_b2[2][i]
-        
+        # (re)add the type and id
         newatm.append(float(atmtyp))
         newatm.append(float(atmid))
-        
+        # add to the list
         newmap.append(newatm)
-        
+        # see if this is the most negative atom
         if minx > newatm[0]: minx = newatm[0]
         if miny > newatm[1]: miny = newatm[1]
         if minz > newatm[2]: minz = newatm[2]
+        # next!
         atm = map_file_in.readline()
         
     minx = np.around(minx)
@@ -81,7 +85,7 @@ def main():
     
     print " ... min unit cell is = %1.4f %1.4f %1.4f " % (minx,miny,minz)
     print " ... shifting "
-    
+    # shift all atoms by the most negative
     for i in range(len(newmap)):
         newmap[i][0] -= minx
         newmap[i][1] -= miny
@@ -89,7 +93,7 @@ def main():
         
     minx=miny=minz=0
     
-    
+    # get the number of unit cells by looking at the maximum of all atoms across the 3 dimensions
     maxs = np.amax(np.array(newmap),axis=0)
     print maxs
     
@@ -134,7 +138,7 @@ def match(a,B):
     
     indx = 0
     for b in B:
-        if a[0] == b[0] and a[1] == b[1] and a[2] == b[2]:
+        if np.abs(a[0]-b[0]) < 0.0001 and np.abs(a[1]-b[1])<0.0001 and np.abs(a[2]-b[2])<0.0001:
             return indx
         else:
             indx += 1

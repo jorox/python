@@ -27,9 +27,9 @@ def main():
   print "    >>> w size = " + str(n_omega)
   print "    >>> k size = " + str(n_k)
   
-  dispdata = np.log2(dispdata)
+  #dispdata = np.log2(dispdata)
   dispdata.transpose()  #flip array for gnuplot
-  #dispdata = np.flipud(dispdata)
+  dispdata = np.flipud(dispdata)
   
   edges = [0, n_k,0, omega[-1] ]
   

@@ -14,6 +14,7 @@ def main():
     lammps = False # flag output file in lammps format
     domap = False # flag build map file
     doalloy = False # alloy flag
+    ischarge = False
     flname = sys.argv[1]
     print "... number of args = " + str(len(sys.argv))
     outname = sys.argv[2]
@@ -40,6 +41,10 @@ def main():
                 base = float(args[iarg+1].split(",")[0])
                 alloy = float(args[iarg+1].split(",")[1])
                 conc = float(args[iarg+2])
+                continue
+            
+            if args[iarg] == "-q":
+                ischarge = True
                 continue
     
 #### load text from input file, ignore lines with 
@@ -78,6 +83,8 @@ def main():
             print "... need more atoms adding " + str(n) 
             atoms = buildmore(n,[a,b,c],atoms)
     print "     >>> " + str(len(atoms)) + " atoms"
+    sysm = [[n[0]*a[0], 0 ,0], [n[1]*b[0], n[1]*b[1], 0], [n[2]*c[0], n[2]*c[1], n[2]*c[2]]]
+    print "     >>> %1.4f, %1.4f, %1.4f nm"% (norm(sysm[0])/10, norm(sysm[1])/10, norm(sysm[2])/10)
     
 #### Alloy if requested
     if doalloy:
@@ -107,7 +114,10 @@ def main():
         fout.write("\n\nAtoms\n")
         for elem in atoms:
             ia +=1
-            fout.write("\n%1.0f %1.0f %10.8f %10.8f %10.8f" % (ia, elem[3], elem[0], elem[1], elem[2]))
+            if ischarge:
+                fout.write("\n%1.0f %1.0f %1.3f %10.8f %10.8f %10.8f" % (ia, elem[3], 1.011, elem[0], elem[1], elem[2]))
+            else:
+                fout.write("\n%1.0f %1.0f %10.8f %10.8f %10.8f" % (ia, elem[3], elem[0], elem[1], elem[2]))
     fout.close()
     print "... Done writing to file " + outname
 #### Done writing to file
