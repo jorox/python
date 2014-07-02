@@ -22,13 +22,13 @@ def main():
     base1_b2 = [x.tolist() for x in base1_b2]
     
     print " ... original lattice vectors= "
-    print ("      %1.4f  %1.4f  %1.4f\n      %1.4f  %1.4f  %1.4f\n      %1.4f  %1.4f  %1.4f" % 
+    print ("      %1.4f | %1.4f | %1.4f\n      %1.4f | %1.4f | %1.4f\n      %1.4f | %1.4f | %1.4f" % 
            (base1_e[0][0], base1_e[1][0], base1_e[2][0],
             base1_e[0][1], base1_e[1][1], base1_e[2][1],
             base1_e[0][2], base1_e[1][2], base1_e[2][2])) 
     
-    print " ... new vectors in terms of old ones = "
-    print ("      %1.4f  %1.4f  %1.4f\n      %1.4f  %1.4f  %1.4f\n      %1.4f  %1.4f  %1.4f" % 
+    print " ... old vectors in terms of new ones = "
+    print ("      %1.4f | %1.4f | %1.4f\n      %1.4f | %1.4f | %1.4f\n      %1.4f | %1.4f |  %1.4f" % 
            (base1_b2[0][0], base1_b2[1][0], base1_b2[2][0],
             base1_b2[0][1], base1_b2[1][1], base1_b2[2][1],
             base1_b2[0][2], base1_b2[1][2], base1_b2[2][2]))
@@ -95,7 +95,8 @@ def main():
     
     # get the number of unit cells by looking at the maximum of all atoms across the 3 dimensions
     maxs = np.amax(np.array(newmap),axis=0)
-    print maxs
+    print "... max unit cells = "
+    print maxs[:3]
     
     map_file_out.write("%1.0f %1.0f %1.0f %1.0f\n#l1 l2 l3 k type id" % (maxs[0]+1,maxs[1]+1,maxs[2]+1,len(base2[3:]) ))
     # the +1 is because there is always a unit cell 0,0,0
@@ -110,8 +111,9 @@ def main():
             print base2[3:]
             return 0
         
+        #!!!!!!!!! int() is necessary since %1.0f ROUNDS the number !!!!!!!!!!!
         map_file_out.write("\n%1.0f %1.0f %1.0f %1.0f %1.0f %1.0f" % 
-                               (newatm[0], newatm[1], newatm[2],
+                               (int(newatm[0]), int(newatm[1]), int(newatm[2]),
                                 newatmindx, newatm[3], newatm[4])
                           )
     
