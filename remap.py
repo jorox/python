@@ -1,13 +1,25 @@
 """
-This file is meant to rempa atoms from one basis to the other
+This file is meant to remap atoms from one basis to the other
 after running lammps in order to unfold the Brillouin zone.
 Needed: old map file + old basis + new basis + some knowledge of the 
         atoms in the new unit cells
+
+ Read in new basis that you want to switch to
+     Take any point q_A = (q1,q2,q3) then q_E = q1*a1_E + q2*a2_E + q3*a3_E = (x, y ,z)
+     Hence, we can say that q_B = (p1,p2,p3) = q1*a1_B + q2*a2_B + q3*a3_B
+
+     Writing in matrix form we can say that [ a1_E | a2_E | a3_E ]*q_A = q_E
+     Apply the same logic to vector ai we see  [b1_E | b2_E | b3_E ]*ai_B = ai_E
+     Hence, --> ////ai_B = cbm*ae_E|\\\\
+
 """
 import sys
 import numpy as np
 
 def main():
+    
+##### Input arguments
+#####   python remap.py old_basis new_basis old_map new_map_name 
     
     base1_e = readbasefile(sys.argv[1])
     base2 = readbasefile(sys.argv[2])
