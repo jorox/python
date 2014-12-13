@@ -3,9 +3,26 @@ import sys
 import os
 
 class vdata:
-
+    """
+    kernel for calculating the dispersion relations
+    data elements:
+        
+        n[3]         = number of unit cells
+        atomspercell = integer number of atoms per unit cell
+        Natoms       = integer total number of atoms
+        amap [n[0],n[1],n[2],b] = **numpy** array containing the unit cell indices (map) of atoms
+        atyp[i]       = type of atom i
+        
+        data = [ atom0{[x0,x1,...,xM],[y0,...,yM],[z],[u],[v],[w]}
+                 atom1{[x], [y], [z], [u], [v], [w]} ,
+    		        ...
+    		        ...
+    		        ...,
+    		        atomN{...} ]
+        
+    """
     def __init__(self,fname,mname,maxsteps=0):
-	print "... reading " + str(maxsteps) + " timesteps"
+        print "... reading " + str(maxsteps) + " timesteps"
         self.readmap(mname)
         self.readfile(fname,maxsteps)
 
@@ -43,6 +60,7 @@ class vdata:
             amap[nx,ny,nz,b] = aid-1   #lammps id and python id differ by 1, check how atm_indx is given in readfile()
 ##### store the type of atom
             atyp[aid-1] = typ
+        
         self.amap = amap
         self.atype = atyp
         return 0
@@ -260,7 +278,13 @@ def parsepfile(fname):
 
 def main():
     pfile = sys.argv[1]
+    dojustDOS = False
+    if len(sys.argv) > 2:
+		   switch = sys.argv[2].strip()
+		   if switch == "-dos":
+				 dojustDOS = True
     os.getcwd()
+    
     flname, mname, kname, dims, a, dt, mtyp, maxsteps, outname = parsepfile(pfile)
     print "   --> file = " + flname
     print "   --> out = " + outname
@@ -309,6 +333,16 @@ def main():
     ik = 0
     print "kvec progress = " + '[           ]',
     print '\b'*12,
+    
+    if dojustDOS:
+       dos = calculateDOS(krnl.data,N,dt)
+       freq = np.arange(0,len(dos)+1)*dw
+       fout = open(outname,'w')
+       for i in range(len(dos)):
+          fout.write("%1.5f %1.5f \n"%(freq[i],dos[i]))
+       fout.close()
+       return 0
+    
     for k in kappa:
 #        iw = 0
         sys.stdout.flush()
@@ -362,6 +396,35 @@ def buildmap(n):
             for i3 in range(n[2]):
                 comb.append([i1,i2,i3])
     return comb
+
+def calculateDOS(data,Nsteps,dt):
+    
+    Npw2 = 2**np.ceil(np.log2(Nsteps)); Nzrs = Npw2-Nsteps
+    dw = 1./dt/Nsteps
+    
+    print("   >>> Old size " + str(len(data[0][0])))
+    print("   >>> Nzrs = " + str(Nzrs))     
+    
+    print("   >>> Padded to new size "+str(len(data[0][0]))) 
+   
+    dos = np.zeros(Nsteps+Nzrs)
+     
+    for j in range(3,6):
+       for i in range(len(data)):   
+            # rfft produces Npw2/2+1 points
+            
+            temp = data[i][j]
+            temp.extend([0.]*Nzrs)
+            vfft = np.fft.rfft(temp)
+            vfft = np.abs(vfft)**2 
+            vfft = vfft/vfft[0]
+            
+            # we need to pad with Npw2/2-1 points fft_v[-1] contains terms for n/2 and -n/2
+            vfft = np.append(vfft, vfft[-1:1:-1])  # PSD will be the same H(-f)=H*(f)
+            dos = dos + np.real(vfft)
+        
+       dos = dos/max(dos)
+    return dos
 
 if __name__=="__main__":
     main()
