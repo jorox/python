@@ -21,10 +21,10 @@ class vdata:
     		        atomN{...} ]
         
     """
-    def __init__(self,fname,mname,maxsteps=0):
+    def __init__(self,fname,mname,maxsteps=0,dosonly=False):
         print "... reading " + str(maxsteps) + " timesteps"
         self.readmap(mname)
-        self.readfile(fname,maxsteps)
+        self.readfile(fname,maxsteps,dosonly)
 
     def readmap(self,mname):
         m_in = open(mname,'r')
@@ -100,7 +100,7 @@ class vdata:
         return rmap
 
 
-    def readfile(self,flname, maxSteps=0):
+    def readfile(self,flname, maxSteps=0, vdataonly=False):
         '''
         parse input file for data
         format of input file:
@@ -133,7 +133,10 @@ class vdata:
         data = []  #preallocate so that atom index can be used to reference
 
         for i in range(Natoms):
-            data.append([[],[],[],[],[],[]])
+            if vdataonly:
+               data.append([[],[],[]])
+            else:
+               data.append([[],[],[],[],[],[]])
 
         f_in.close()
         f_in = open(flname)
@@ -158,12 +161,17 @@ class vdata:
                 tmp = [float(x) for x in tmp]
 
                 atm_indx = int(tmp[0]) - 1
-                data[atm_indx][3].append(tmp[2]) #vx
-                data[atm_indx][4].append(tmp[3]) #vx
-                data[atm_indx][5].append(tmp[4]) #vx
-                data[atm_indx][0].append(tmp[5]) #x
-                data[atm_indx][1].append(tmp[6]) #y
-                data[atm_indx][2].append(tmp[7]) #z
+                if vdataonly: #only velocity data beacause of DOS
+                   data[atm_indx][0].append(tmp[2]) #vx
+                   data[atm_indx][1].append(tmp[3]) #vx
+                   data[atm_indx][2].append(tmp[4]) #vx
+                else:
+                   data[atm_indx][3].append(tmp[2]) #vx
+                   data[atm_indx][4].append(tmp[3]) #vx
+                   data[atm_indx][5].append(tmp[4]) #vx
+                   data[atm_indx][0].append(tmp[5]) #x
+                   data[atm_indx][1].append(tmp[6]) #y
+                   data[atm_indx][2].append(tmp[7]) #z
 
             mrkr += 1
         if not maxSteps: Nsteps +=1  # needed when reading all steps in file
@@ -280,9 +288,9 @@ def main():
     pfile = sys.argv[1]
     dojustDOS = False
     if len(sys.argv) > 2:
-		   switch = sys.argv[2].strip()
-		   if switch == "-dos":
-				 dojustDOS = True
+       switch = sys.argv[2].strip()
+       if switch == "-dos":
+          dojustDOS = True
     os.getcwd()
     
     flname, mname, kname, dims, a, dt, mtyp, maxsteps, outname = parsepfile(pfile)
@@ -292,6 +300,10 @@ def main():
     print "   --> lattice = " + str(a)
     print "   --> dt = " + str(dt)
     print "   --> masses = " + str(mtyp)
+    if dojustDOS:
+       print "      **************************************************"
+       print "   -->       ****  CALCULATING THE DOS ONLY  ****"
+       print "      **************************************************"
 
     #ddir = "/Users/kassemw/Documents/LiClipse_Workspace/dispersion/"
     #flname = ddir+"xv_Cu.dat"
@@ -310,7 +322,7 @@ def main():
 
 
     ###### read file into memory ######
-    krnl = vdata(flname,mname,maxsteps)
+    krnl = vdata(flname,mname,maxsteps,dojustDOS)
 
     ###### calculated from input ######
     N_T = np.prod(krnl.n)    #number of unit cells
@@ -336,7 +348,7 @@ def main():
     
     if dojustDOS:
        dos = calculateDOS(krnl.data,N,dt)
-       freq = np.arange(0,len(dos)+1)*dw
+       freq = np.arange(0,len(dos)+1)*dw/2
        fout = open(outname,'w')
        for i in range(len(dos)):
           fout.write("%1.5f %1.5f \n"%(freq[i],dos[i]))
@@ -409,7 +421,7 @@ def calculateDOS(data,Nsteps,dt):
    
     dos = np.zeros(Nsteps+Nzrs)
      
-    for j in range(3,6):
+    for j in range(3):
        for i in range(len(data)):   
             # rfft produces Npw2/2+1 points
             
@@ -423,7 +435,7 @@ def calculateDOS(data,Nsteps,dt):
             vfft = np.append(vfft, vfft[-1:1:-1])  # PSD will be the same H(-f)=H*(f)
             dos = dos + np.real(vfft)
         
-       dos = dos/max(dos)
+       dos = dos/len(data)/3
     return dos
 
 if __name__=="__main__":
