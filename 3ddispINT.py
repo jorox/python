@@ -378,10 +378,10 @@ def main():
     
     if dojustDOS:
        dos = calculateDOS(krnl.data,N,dt)
-       freq = np.arange(0,len(dos)+1)*dw/2
+       freq = np.arange(0,len(dos[0])+1)*dw/2
        fout = open(outname,'w')
-       for i in range(len(dos)):
-          fout.write("%1.5f %1.5f \n"%(freq[i],dos[i]))
+       for i in range(len(dos[0])):
+          fout.write("%1.5f %1.5f %1.5f \n"%(freq[i],dos[0,i],dos[1,i]))
        fout.close()
        return 0
     
@@ -446,7 +446,25 @@ def buildmap(n):
             for i3 in range(n[2]):
                 comb.append([i1,i2,i3])
     return comb
-
+def calculateDOSac(data,Nsteps,dt):
+   dw = 2*np.pi/dt/Nsteps
+   G = np.zeros(Nsteps)         # len(G) = len(w) 
+   w = np.arange(Nsteps)*dw
+   w = w.reshape((Nsteps,1)) #multiplication will create a matrix
+   t = np.arange(Nsteps)*dt
+   coswt = np.cos(w*t)   #matrix size NxN where wt[i] = w[i]*t where t=[t0 t1 t2 .... tN]
+   
+   for i in range(len(data)): # number of atoms
+      Zalpha = np.zeros(Nsteps)
+      for j in range(3): # x,y,z
+         Zalpha += np.correlate(data[i][j],data[i][j],mode='same')
+      
+      G += np.trapz(Zalpha*coswt/Zalpha[0],t) #integration this way has been verified to be along axis=1 which is the t-axis
+   
+   G = G*6*len(data)/np.pi
+   
+   return G     
+         
 def calculateDOS(data,Nsteps,dt):
     
     Npw2 = 2**np.ceil(np.log2(Nsteps)); Nzrs = Npw2-Nsteps
@@ -457,23 +475,19 @@ def calculateDOS(data,Nsteps,dt):
     
     print("   >>> Padded to new size "+str(len(data[0][0]))) 
    
-    dos = np.zeros(Nsteps+Nzrs)
-     
-    for j in range(3):
-       for i in range(len(data)):   
+    dos = np.zeros((2,Npw2/2+1))
+    print "   >>> Size of data = %1.0f by %1.0f"%(len(data), len(data[0]))
+    for i in range(len(data)):
+       for j in range(3):   
             # rfft produces Npw2/2+1 points
             
             temp = data[i][j]
             temp.extend([0.]*Nzrs)
             vfft = np.fft.rfft(temp)
             vfft = np.abs(vfft)**2 
-            vfft = vfft/vfft[0]
-            
-            # we need to pad with Npw2/2-1 points fft_v[-1] contains terms for n/2 and -n/2
-            vfft = np.append(vfft, vfft[-1:1:-1])  # PSD will be the same H(-f)=H*(f)
-            dos = dos + np.real(vfft)
+            dos[i%2] = dos[i%2] + np.real(vfft)
         
-       dos = dos/len(data)/3
+    dos = dos/len(data)/6
     return dos
 
 if __name__=="__main__":
